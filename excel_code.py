@@ -39,7 +39,7 @@ def calculate_equiv_percentage(cgpa):
 
 
 def extract_data_from_pdf(pdf_path):
-    data = {"Name": "", "RollNo.": "", "Subjects": {}, "SGPA": "NA", "CGPA": "NA", "SGPA Equivalent": "NA", "CGPA Equivalent": "NA"}
+    data = {"Name": "", "RollNo.": "", "Subjects": {}, "SGPA": "NA", "CGPA": "NA", "SGPA Equivalent": "NA", "CGPA Equivalent": "NA", "Result": "NA"}
     with pdfplumber.open(pdf_path) as pdf:
         first_page = pdf.pages[0]
         text = first_page.extract_text()
@@ -51,6 +51,7 @@ def extract_data_from_pdf(pdf_path):
     sgpa_match = re.search(r'SGPA:\s*([\d.]+)', text)
     cgpa_match = re.search(r'CGPA:\s*([\d.]+)', text)
     sgpa_equiv_match = re.search(r'Equiv% : (\d+\.\d+)', text)
+    result_match = re.search(r'RESULT:\s*(\w+)', text, re.IGNORECASE)
     
     if name_match:
         data["Name"] = name_match.group(1).strip()
@@ -62,6 +63,11 @@ def extract_data_from_pdf(pdf_path):
         data["CGPA"] = cgpa_match.group(1).strip()
     if sgpa_equiv_match:
         data["SGPA Equivalent"] = sgpa_equiv_match.group(1).strip()
+    if result_match:
+        result = "Pass" if "pass" in result_match.group(1).lower() else "Fail"
+    else:
+        result = "N/A"
+    data["Result"] = result
 
     subjects_start = False
     for line in lines:
@@ -106,7 +112,7 @@ sheet = workbook.active
 headers = ["Name", "RollNo."]
 for pdf_file in pdf_files:
     extracted_data = extract_data_from_pdf(os.path.join(pdf_folder, pdf_file))
-    headers += list(extracted_data["Subjects"].keys()) + ["SGPA", "SGPA Equivalent Percentage", "CGPA", "CGPA Equivalent Percentage"]
+    headers += list(extracted_data["Subjects"].keys()) + ["SGPA", "SGPA Equivalent Percentage", "CGPA", "CGPA Equivalent Percentage", "Result"]
 
 sheet.append(headers)
 
@@ -115,8 +121,10 @@ for pdf_file in pdf_files:
     row_data = [extracted_data["Name"], extracted_data["RollNo."]]
     sgpa = extracted_data["SGPA"]
     cgpa = extracted_data["CGPA"]
-    row_data += list(extracted_data["Subjects"].values()) + [sgpa, calculate_equiv_percentage(sgpa), cgpa, calculate_equiv_percentage(cgpa)]
+    result = extracted_data["Result"]
+    row_data += list(extracted_data["Subjects"].values()) + [sgpa, calculate_equiv_percentage(sgpa), cgpa, calculate_equiv_percentage(cgpa), result]
     sheet.append(row_data)
+
 
 workbook.save(output_excel_path)
 print(f"Data extracted from PDFs and saved to '{output_excel_path}'.")
