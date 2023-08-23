@@ -27,8 +27,19 @@ def grade_to_marks(grade):
     else:
         return 'NA'
 
+def calculate_equiv_percentage(cgpa):
+    cgpa = float(cgpa)
+    if 4.5 < cgpa <= 10:
+        equiv_percentage = (cgpa - 0.50) * 10
+    elif 4 <= cgpa <= 4.5:
+        equiv_percentage = 40
+    else:
+        equiv_percentage = cgpa * 10
+    return equiv_percentage
+
+
 def extract_data_from_pdf(pdf_path):
-    data = {"Name": "", "RollNo.": "", "Subjects": {}, "SGPA": "NA", "CGPA": "NA"}
+    data = {"Name": "", "RollNo.": "", "Subjects": {}, "SGPA": "NA", "CGPA": "NA", "SGPA Equivalent": "NA", "CGPA Equivalent": "NA"}
     with pdfplumber.open(pdf_path) as pdf:
         first_page = pdf.pages[0]
         text = first_page.extract_text()
@@ -39,6 +50,7 @@ def extract_data_from_pdf(pdf_path):
     roll_match = re.search(r'Roll No.:\s*(\w+)', text)
     sgpa_match = re.search(r'SGPA:\s*([\d.]+)', text)
     cgpa_match = re.search(r'CGPA:\s*([\d.]+)', text)
+    sgpa_equiv_match = re.search(r'Equiv% : (\d+\.\d+)', text)
     
     if name_match:
         data["Name"] = name_match.group(1).strip()
@@ -48,6 +60,8 @@ def extract_data_from_pdf(pdf_path):
         data["SGPA"] = sgpa_match.group(1).strip()
     if cgpa_match:
         data["CGPA"] = cgpa_match.group(1).strip()
+    if sgpa_equiv_match:
+        data["SGPA Equivalent"] = sgpa_equiv_match.group(1).strip()
 
     subjects_start = False
     for line in lines:
@@ -79,7 +93,7 @@ def save_to_excel(data, excel_file_path):
     print(f"Data extracted from PDFs and saved to '{excel_file_path}'.")
 
 # Path to the folder containing PDF files
-pdf_folder = r"C:\Users\bhaba\my preparation\books\COMMERCE\Results\mark_sheets_2nd_semester_ZOOLOGY"
+pdf_folder = r"C:\Users\bhaba\my preparation\books\COMMERCE\Results\Marks_Downloader\mark_sheets_2nd_Semester"
 output_excel_file = "output.xlsx"
 
 pdf_files = [file for file in os.listdir(pdf_folder) if file.lower().endswith(".pdf")]
@@ -91,17 +105,17 @@ sheet = workbook.active
 
 headers = ["Name", "RollNo."]
 for pdf_file in pdf_files:
-    pdf_file_path = os.path.join(pdf_folder, pdf_file)
-    extracted_data = extract_data_from_pdf(pdf_file_path)
-    headers += list(extracted_data["Subjects"].keys()) + ["SGPA", "CGPA"]
+    extracted_data = extract_data_from_pdf(os.path.join(pdf_folder, pdf_file))
+    headers += list(extracted_data["Subjects"].keys()) + ["SGPA", "SGPA Equivalent Percentage", "CGPA", "CGPA Equivalent Percentage"]
 
 sheet.append(headers)
 
 for pdf_file in pdf_files:
-    pdf_file_path = os.path.join(pdf_folder, pdf_file)
-    extracted_data = extract_data_from_pdf(pdf_file_path)
+    extracted_data = extract_data_from_pdf(os.path.join(pdf_folder, pdf_file))
     row_data = [extracted_data["Name"], extracted_data["RollNo."]]
-    row_data += list(extracted_data["Subjects"].values()) + [extracted_data["SGPA"], extracted_data["CGPA"]]
+    sgpa = extracted_data["SGPA"]
+    cgpa = extracted_data["CGPA"]
+    row_data += list(extracted_data["Subjects"].values()) + [sgpa, calculate_equiv_percentage(sgpa), cgpa, calculate_equiv_percentage(cgpa)]
     sheet.append(row_data)
 
 workbook.save(output_excel_path)
